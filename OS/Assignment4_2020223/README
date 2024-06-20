@@ -1,0 +1,24 @@
+Name: Navidha Jain
+Roll Number: 2020223
+
+USING LINUX-5.14.6
+
+We use a queue to solve this question. We make the standard enqueue and dequeue functions of a queue in sys.c for later use. We use an array to implement the queue data structure.
+We add the names of the system calls in syscall_64.tbl according to the required format.
+We add the 2 syscalls to be added, writer and reader in the same sys.c. 
+Inside writer, we first lock using mutex_lock.
+Then using copy_from_user we copy the string to a temp string.
+Using a while loop we enqueue all the characters of the string into the queue.
+Once this is done we unlock the mutex.
+Inside reader we lock the mutex and make a temp character array;
+Using a while loop we get the characters and store it in the character array.
+We then use copy_to_user to get the required string from the temp char array.
+Finally we unlock the mutex.
+
+Inside the p c program file we open /dev/urandom using fopen() and copy it into string.
+Then we simply call the syscall writer using syscall().
+
+Inside the c c program file we call the syscall reader using syscall().
+Then we simply print the string.
+
+Files modified are: sys.c and syscall_64.tbl

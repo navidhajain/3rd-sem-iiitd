@@ -1,0 +1,134 @@
+diff --git original/sys.c modified/sys.c
+index d7357d3..dfca01c 100644
+--- original/sys.c
++++ modified/sys.c
+@@ -154,11 +154,13 @@ int fs_overflowgid = DEFAULT_FS_OVERFLOWGID;
+ EXPORT_SYMBOL(fs_overflowuid);
+ EXPORT_SYMBOL(fs_overflowgid);
+ 
+-static char arr[50];
++static char arr[10];
+ static int front = -1, rear = -1;
++static struct mutex mutex_1;
++// mutex_init(&mutex_1);
+ 
+ static void enqueue(char value) {
+-    if (rear == SIZE - 1)  {printf("Queue is full\n");}
++    if (rear == 10 - 1)  {printk("Queue is full\n");}
+     else {
+         if (front == -1)
+             {front = 0;}
+@@ -167,13 +169,19 @@ static void enqueue(char value) {
+     }
+ }
+ 
+-static void dequeue() {
+-    if (front == -1)  {printf("Queue is empty\n");}
++static char dequeue(void) {
++	char temp;
++    if (front == -1)  {
++		printk("Queue is empty\n");
++	}
+     else {
++		temp=arr[front];
+         front++;
+         if (front > rear)
+             {front = rear = -1;}
++		return temp;	
+     }
++	return "\0";
+ }
+ 
+ /*
+@@ -221,6 +229,76 @@ static int set_one_prio(struct task_struct *p, int niceval, int error)
+ out:
+ 	return error;
+ }
++SYSCALL_DEFINE4(kernel_2d_memcpy, float **, d, float **, s, int, r, int, c){
++	float temp[r][c];
++	long cop;
++	int row=0;
++	int col=0;
++	while(row<r){
++		col=0;
++		while(col<c){
++			cop=__copy_from_user(&temp[row][col], &s[row][col], sizeof(float));
++			col++;
++		}
++		row++;	
++	}	
++	row=0;
++	col=0;
++	while(row<r){
++		col=0; 
++		while(col<c){
++			cop=__copy_to_user(&d[row][col], &temp[row][col], sizeof(float));
++			col++;
++		}
++		row++;	
++	}	
++	return 0;
++}
++
++SYSCALL_DEFINE1(writer, char*, string){
++	mutex_lock(&mutex_1);
++	printk("inside write 1");
++	char temp[50];
++	int i=0;
++	// while(i<8){
++	copy_from_user(temp, string, 8*sizeof(char));
++		// i++;
++	//}
++	printk("inside write, after while 1");
++	i=0;
++	while(i<8){
++		printk("%c", temp[i]);
++		enqueue(temp[i]);
++		i++;
++	}
++	printk("inside write, after while 2");
++	mutex_unlock(&mutex_1);
++	return 0;
++}
++
++SYSCALL_DEFINE1(reader, char*, string){
++	mutex_lock(&mutex_1);
++	// if(arr==NULL){
++	// 	arr=(char*)kmalloc(8*sizeof(char), GFP_KERNEL);
++	// }
++	char temp[50];
++	int i=0;
++	char temp1;
++	while(i<8){
++		temp1=dequeue();
++		temp[i]=temp1;
++		i++;
++	}
++	i=0;
++
++	while(i<8){
++		__copy_to_user(&string[i], &temp[i], sizeof(char));
++		i++;
++	}
++	
++	mutex_unlock(&mutex_1);
++	return 0;
++}
+ 
+ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
+ {
+diff --git original/syscall_64.tbl modified/syscall_64.tbl
+index f6b5779..0367aec 100644
+--- original/syscall_64.tbl
++++ modified/syscall_64.tbl
+@@ -369,7 +369,9 @@
+ 445	common	landlock_add_rule	sys_landlock_add_rule
+ 446	common	landlock_restrict_self	sys_landlock_restrict_self
+ 447	common	memfd_secret		sys_memfd_secret
+-
++448	common	kernel_2d_memcpy	sys_kernel_2d_memcpy
++449 common  writer              sys_writer
++450 common  reader              sys_reader
+ #
+ # Due to a historical design error, certain syscalls are numbered differently
+ # in x32 as compared to native x86_64.  These syscalls have numbers 512-547.
